@@ -5,7 +5,6 @@ on:
     # Run once per day at 00:00 UTC
     - cron: "0 0 * * *"
   workflow_dispatch:
-    # Allow manual triggering for testing
 
 jobs:
   check-failures:
