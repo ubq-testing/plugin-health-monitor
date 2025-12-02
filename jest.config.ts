@@ -1,7 +1,6 @@
 import type { Config } from "jest";
 
 const cfg: Config = {
-  testEnvironment: "node",
   transform: {
     "^.+\\.[jt]s$": ["@swc/jest", {}],
   },

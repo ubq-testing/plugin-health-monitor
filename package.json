@@ -32,7 +32,8 @@
     "@sinclair/typebox": "0.34.41",
     "@ubiquity-os/plugin-sdk": "^3.4.6",
     "@ubiquity-os/ubiquity-os-logger": "^1.4.0",
-    "dotenv": "17.2.3"
+    "dotenv": "17.2.3",
+    "ts-node": "^10.9.2"
   },
   "devDependencies": {
     "@commitlint/cli": "20.1.0",
