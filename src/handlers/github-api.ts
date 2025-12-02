@@ -3,12 +3,12 @@ import { Repository, WorkflowFailureInfo, WorkflowInfo, WorkflowRun } from "../t
 import { customOctokit } from "@ubiquity-os/plugin-sdk/octokit";
 
 export class GitHubApi {
-  private octokit: InstanceType<typeof customOctokit>;
-  private org: string;
+  private _octokit: InstanceType<typeof customOctokit>;
+  private _org: string;
 
   constructor(token: string, org: string = MARKETPLACE_ORG) {
-    this.octokit = new customOctokit({ auth: token });
-    this.org = org;
+    this._octokit = new customOctokit({ auth: token });
+    this._org = org;
   }
 
   async getRepositories(): Promise<Repository[]> {
@@ -16,8 +16,8 @@ export class GitHubApi {
     let page = 1;
 
     while (true) {
-      const { data } = await this.octokit.rest.repos.listForOrg({
-        org: this.org,
+      const { data } = await this._octokit.rest.repos.listForOrg({
+        org: this._org,
         type: "all",
         per_page: 100,
         page,
@@ -40,8 +40,8 @@ export class GitHubApi {
 
   async getWorkflows(repo: string): Promise<WorkflowInfo[]> {
     try {
-      const { data } = await this.octokit.rest.actions.listRepoWorkflows({
-        owner: this.org,
+      const { data } = await this._octokit.rest.actions.listRepoWorkflows({
+        owner: this._org,
         repo,
         per_page: 100,
       });
@@ -55,8 +55,8 @@ export class GitHubApi {
 
   async getWorkflowRuns(repo: string, workflowId: number): Promise<WorkflowRun[]> {
     try {
-      const { data } = await this.octokit.rest.actions.listWorkflowRuns({
-        owner: this.org,
+      const { data } = await this._octokit.rest.actions.listWorkflowRuns({
+        owner: this._org,
         repo,
         workflow_id: workflowId,
         event: "workflow_dispatch",
@@ -127,8 +127,8 @@ export class GitHubApi {
 
   async issueExists(repo: string, title: string): Promise<boolean> {
     try {
-      const { data } = await this.octokit.rest.issues.listForRepo({
-        owner: this.org,
+      const { data } = await this._octokit.rest.issues.listForRepo({
+        owner: this._org,
         repo,
         state: "open",
         per_page: 100,
@@ -142,15 +142,12 @@ export class GitHubApi {
   }
 
   async createIssue(repo: string, title: string, body: string, labels: string[]): Promise<void> {
-
-    console.log(`Mock create issue in ${repo} with title: ${title}`, body, labels);
-
-    // await this.octokit.rest.issues.create({
-    //   owner: this.org,
-    //   repo,
-    //   title,
-    //   body,
-    //   labels,
-    // });
+    await this._octokit.rest.issues.create({
+      owner: this._org,
+      repo,
+      title,
+      body,
+      labels,
+    });
   }
 }

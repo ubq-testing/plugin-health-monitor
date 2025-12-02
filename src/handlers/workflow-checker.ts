@@ -11,10 +11,7 @@ export async function createIssueForFailures(api: GitHubApi, repo: string, failu
 
   const failureDetails = failures
     .map(
-      (f) =>
-        `### ${f.workflowName}\n` +
-        `- **Consecutive failures:** ${f.consecutiveFailures}\n` +
-        `- **Latest failure:** [View Run](${f.lastFailureUrl})\n`
+      (f) => `### ${f.workflowName}\n` + `- **Consecutive failures:** ${f.consecutiveFailures}\n` + `- **Latest failure:** [View Run](${f.lastFailureUrl})\n`
     )
     .join("\n");
 

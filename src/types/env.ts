@@ -13,11 +13,10 @@ import { logger } from "../utils";
  */
 export const envSchema = T.Object({
   LOG_LEVEL: T.Optional(T.Enum(LOG_LEVEL, { default: LOG_LEVEL.INFO })),
-  GITHUB_TOKEN:
-    T.String({
-      minLength: 1,
-      description: "GitHub token for API authentication (from actions/create-github-app-token@v2)",
-    })
+  GITHUB_TOKEN: T.String({
+    minLength: 1,
+    description: "GitHub token for API authentication (from actions/create-github-app-token@v2)",
+  }),
 });
 
 export type Env = StaticDecode<typeof envSchema>;

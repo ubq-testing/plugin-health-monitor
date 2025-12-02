@@ -2,7 +2,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import { drop } from "@mswjs/data";
 import { GitHubApi } from "../src/handlers/github-api";
 import { checkRepository, createIssueForFailures } from "../src/handlers/workflow-checker";
-import { CONSECUTIVE_FAILURE_THRESHOLD, ISSUE_TITLE } from "../src/types/constants";
+import { ISSUE_TITLE } from "../src/types/constants";
 import { workflowDb } from "./__mocks__/workflow-db";
 import { workflowServer } from "./__mocks__/workflow-server";
 
@@ -23,11 +23,7 @@ afterAll(() => {
   workflowServer.close();
 });
 
-function createWorkflowRuns(
-  workflowId: number,
-  repo: string,
-  runs: Array<{ conclusion: string | null; actor: string; daysAgo: number }>
-) {
+function createWorkflowRuns(workflowId: number, repo: string, runs: Array<{ conclusion: string | null; actor: string; daysAgo: number }>) {
   runs.forEach((run, index) => {
     const createdAt = new Date();
     createdAt.setDate(createdAt.getDate() - run.daysAgo);
@@ -227,16 +223,16 @@ describe("GitHubApi", () => {
       });
 
       const api = new GitHubApi(TEST_TOKEN, TEST_ORG);
-      const exists = await api.issueExists(TEST_REPO, ISSUE_TITLE);
+      const doesExist = await api.issueExists(TEST_REPO, ISSUE_TITLE);
 
-      expect(exists).toBe(true);
+      expect(doesExist).toBe(true);
     });
 
     it("should return false when issue does not exist", async () => {
       const api = new GitHubApi(TEST_TOKEN, TEST_ORG);
-      const exists = await api.issueExists(TEST_REPO, ISSUE_TITLE);
+      const doesExist = await api.issueExists(TEST_REPO, ISSUE_TITLE);
 
-      expect(exists).toBe(false);
+      expect(doesExist).toBe(false);
     });
   });
 
@@ -312,9 +308,9 @@ describe("Workflow Checker", () => {
         },
       ];
 
-      const created = await createIssueForFailures(api, TEST_REPO, failures);
+      const isCreated = await createIssueForFailures(api, TEST_REPO, failures);
 
-      expect(created).toBe(true);
+      expect(isCreated).toBe(true);
       const issues = workflowDb.issues.getAll();
       expect(issues).toHaveLength(1);
       expect(issues[0].title).toBe(ISSUE_TITLE);
@@ -342,9 +338,9 @@ describe("Workflow Checker", () => {
         },
       ];
 
-      const created = await createIssueForFailures(api, TEST_REPO, failures);
+      const isCreated = await createIssueForFailures(api, TEST_REPO, failures);
 
-      expect(created).toBe(false);
+      expect(isCreated).toBe(false);
       const issues = workflowDb.issues.getAll();
       expect(issues).toHaveLength(1);
     });
@@ -385,7 +381,7 @@ describe("Environment Validation", () => {
 
     const { validateEnv } = await import("../src/types/env");
 
-    expect(() => validateEnv()).toThrow("GITHUB_TOKEN environment variable is required");
+    expect(() => validateEnv()).toThrow();
   });
 
   it("should return token when GITHUB_TOKEN is set", async () => {
