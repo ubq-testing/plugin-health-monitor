@@ -10,21 +10,16 @@
     "node": ">=24.11.0"
   },
   "scripts": {
-    "dev:bun": "bun --watch --no-clear-screen --port 4000 src/worker.ts",
-    "dev:deno": "deno serve -A --watch --no-clear-screen --port 4000 src/worker.ts",
-    "build": "tsc --project tsconfig.json",
     "format": "run-p format:*",
-    "check-formatting": "run-p check-formatting:* format:cspell",
-    "check-formatting:lint": "eslint --fix-dry-run",
     "format:lint": "eslint --fix .",
     "format:prettier": "prettier --write .",
-    "check-formatting:prettier": "prettier --check .",
     "format:cspell": "cspell **/*",
     "knip": "knip --config .github/knip.ts",
     "knip-ci": "knip --no-exit-code --reporter json --config .github/knip.ts",
-    "test": "cross-env NODE_OPTIONS=\"$NODE_OPTIONS --experimental-vm-modules\" jest --setupFiles dotenv/config --coverage",
+    "test": "jest --setupFiles dotenv/config --coverage",
     "worker": "wrangler dev --env dev --port 4000",
-    "prepare": "husky"
+    "prepare": "husky",
+    "check:failures": "npx tsx ./src/check-workflow-failures.ts"
   },
   "keywords": [
     "typescript",
@@ -34,6 +29,7 @@
     "open-source"
   ],
   "dependencies": {
+    "@octokit/rest": "^22.0.1",
     "@sinclair/typebox": "0.34.41",
     "@ubiquity-os/plugin-sdk": "^3.4.0",
     "@ubiquity-os/ubiquity-os-logger": "^1.4.0",
