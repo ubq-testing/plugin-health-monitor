@@ -19,6 +19,7 @@ export const workflowDb = factory({
     name: String,
     repo: String,
     state: String,
+    path: String,
   },
   workflowRuns: {
     id: primaryKey(Number),

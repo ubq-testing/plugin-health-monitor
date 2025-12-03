@@ -70,7 +70,7 @@ export async function checkAllRepositories(api: GitHubApi): Promise<RepoFailures
     logger.info(`Checking ${repo.name}...`);
     const failures = await checkRepository(api, repo.name);
     logger.debug(`Found ${failures.length} failures in ${repo.name}`);
-    if (failures.length > 0) {  
+    if (failures.length > 0) {
       allFailures.push({ repo: repo.name, failures });
       await createIssueForFailures(api, repo.name, failures);
     }

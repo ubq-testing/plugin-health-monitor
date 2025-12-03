@@ -84,12 +84,14 @@ describe("GitHubApi", () => {
         name: "CI",
         repo: TEST_REPO,
         state: "active",
+        path: ".github/workflows/compute.yml",
       });
       workflowDb.workflows.create({
         id: 2,
         name: "Deploy",
         repo: TEST_REPO,
         state: "active",
+        path: ".github/workflows/compute.yml",
       });
 
       const api = new GitHubApi(TEST_TOKEN, TEST_ORG);
@@ -108,6 +110,7 @@ describe("GitHubApi", () => {
         name: "Test Workflow",
         repo: TEST_REPO,
         state: "active",
+        path: ".github/workflows/compute.yml",
       });
     });
 
@@ -257,6 +260,7 @@ describe("Workflow Checker", () => {
         name: "Failing Workflow",
         repo: TEST_REPO,
         state: "active",
+        path: ".github/workflows/compute.yml",
       });
 
       const runs = Array.from({ length: 12 }, (_, i) => ({
@@ -280,6 +284,7 @@ describe("Workflow Checker", () => {
         name: "Healthy Workflow",
         repo: TEST_REPO,
         state: "active",
+        path: ".github/workflows/compute.yml",
       });
 
       const runs = Array.from({ length: 5 }, (_, i) => ({
