@@ -12,9 +12,11 @@ async function main() {
   printSummary(allFailures);
 }
 
-main().catch((error) => {
-  console.error("Script failed:", error);
-  process.exit(1);
-}).finally(() => {
-  process.exit(0);
-});
+main()
+  .catch((error) => {
+    console.error("Script failed:", error);
+    process.exit(1);
+  })
+  .finally(() => {
+    process.exit(0);
+  });

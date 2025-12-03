@@ -1,6 +1,6 @@
 import { BOT_ACTORS, CONSECUTIVE_FAILURE_THRESHOLD, MARKETPLACE_ORG } from "../types/constants";
 import { Repository, WorkflowFailureInfo, WorkflowInfo, WorkflowRun } from "../types/workflow";
-import { customOctokit } from "@ubiquity-os/plugin-sdk/octokit";
+import { customOctokit, RestEndpointMethodTypes } from "@ubiquity-os/plugin-sdk/octokit";
 import { logger } from "../utils";
 
 export class GitHubApi {
@@ -34,7 +34,7 @@ export class GitHubApi {
         per_page: 100,
       });
 
-      return data.workflows.map((wf) => ({ id: wf.id, name: wf.name }));
+      return data.workflows.filter((wf) => wf.path.includes("compute")).map((wf) => ({ id: wf.id, name: wf.name, path: wf.path }));
     } catch (err) {
       throw logger.error(`Failed to get workflows for ${repo}:`, { err });
     }
@@ -46,10 +46,20 @@ export class GitHubApi {
         owner: this._org,
         repo,
         workflow_id: workflowId,
-        event: "workflow_dispatch",
         per_page: 100,
-        actor: BOT_ACTORS.join(","),
       });
+
+      function getActor(run: RestEndpointMethodTypes["actions"]["listWorkflowRuns"]["response"]["data"]["workflow_runs"][0]) {
+        if (run.actor) {
+          return { login: run.actor.login };
+        } else if (run.triggering_actor) {
+          return { login: run.triggering_actor.login };
+        } else if (run.head_commit) {
+          return { login: run.head_commit.author?.name || "" };
+        } else {
+          return null;
+        }
+      }
 
       return data.workflow_runs.map((run) => ({
         id: run.id,
@@ -57,7 +67,7 @@ export class GitHubApi {
         conclusion: run.conclusion,
         created_at: run.created_at,
         html_url: run.html_url,
-        actor: run.actor ? { login: run.actor.login } : null,
+        actor: getActor(run),
       }));
     } catch (err) {
       throw logger.error(`Failed to get workflow runs for ${repo}:`, { err });
@@ -73,7 +83,7 @@ export class GitHubApi {
     const runs = await this.getWorkflowRuns(repo, workflowId);
 
     // Filter runs triggered by our bot actors
-    const botRuns = runs.filter((run) => BOT_ACTORS.includes(run.actor?.login || ""));
+    const botRuns = runs.filter((run) => BOT_ACTORS.includes(run.actor?.login.toLowerCase() || ""));
 
     if (botRuns.length === 0) {
       logger.warn(`No bot-triggered runs found for workflow ${workflowName} in ${repo}`);

@@ -42,6 +42,13 @@ export async function checkRepository(api: GitHubApi, repo: string): Promise<Wor
   const workflows = await api.getWorkflows(repo);
   const failures: WorkflowFailureInfo[] = [];
 
+  if (workflows.length === 0) {
+    logger.info(`No workflows found for repository ${repo}`);
+    return failures;
+  }
+
+  logger.debug(`Found ${workflows.length} workflows`, { repo, workflows });
+
   for (const workflow of workflows) {
     const failure = await api.checkWorkflowForConsecutiveFailures(repo, workflow.id, workflow.name);
     if (failure) {
@@ -55,15 +62,15 @@ export async function checkRepository(api: GitHubApi, repo: string): Promise<Wor
 export async function checkAllRepositories(api: GitHubApi): Promise<RepoFailures[]> {
   logger.info("Fetching repositories...");
   const repos = await api.getRepositories();
-  logger.info(`Found ${repos.length} repositories`);
+  logger.debug(`Found ${repos.length} repositories`);
 
   const allFailures: RepoFailures[] = [];
 
   for (const repo of repos) {
     logger.info(`Checking ${repo.name}...`);
     const failures = await checkRepository(api, repo.name);
-
-    if (failures.length > 0) {
+    logger.debug(`Found ${failures.length} failures in ${repo.name}`);
+    if (failures.length > 0) {  
       allFailures.push({ repo: repo.name, failures });
       await createIssueForFailures(api, repo.name, failures);
     }
