@@ -143,6 +143,17 @@ export default defineConfig(
           format: ["strictCamelCase"],
         },
         {
+          selector: "parameter",
+          format: ["strictCamelCase"],
+          leadingUnderscore: "allow",
+        },
+        {
+          selector: "parameter",
+          modifiers: ["unused"],
+          format: ["strictCamelCase"],
+          leadingUnderscore: "allow",
+        },
+        {
           selector: ["function", "variable"],
           format: ["strictCamelCase"],
         },

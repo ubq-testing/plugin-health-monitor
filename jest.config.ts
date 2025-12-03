@@ -2,8 +2,9 @@ import type { Config } from "jest";
 
 const cfg: Config = {
   transform: {
-    "^.+\\.tsx?$": "@swc/jest",
+    "^.+\\.[jt]s$": ["@swc/jest", {}],
   },
+  transformIgnorePatterns: [],
   moduleFileExtensions: ["ts", "tsx", "js", "jsx", "json", "node"],
   coveragePathIgnorePatterns: ["node_modules", "mocks"],
   collectCoverage: true,
@@ -12,10 +13,6 @@ const cfg: Config = {
   coverageDirectory: "coverage",
   testTimeout: 20000,
   roots: ["<rootDir>", "tests"],
-  extensionsToTreatAsEsm: [".ts", ".tsx"],
-  moduleNameMapper: {
-    "^(\\.{1,2}/.*)\\.js$": "$1",
-  },
   setupFilesAfterEnv: ["dotenv/config"],
 };
 
