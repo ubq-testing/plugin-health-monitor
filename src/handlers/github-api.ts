@@ -1,6 +1,7 @@
 import { BOT_ACTORS, CONSECUTIVE_FAILURE_THRESHOLD, MARKETPLACE_ORG } from "../types/constants";
 import { Repository, WorkflowFailureInfo, WorkflowInfo, WorkflowRun } from "../types/workflow";
 import { customOctokit } from "@ubiquity-os/plugin-sdk/octokit";
+import { logger } from "../utils";
 
 export class GitHubApi {
   private _octokit: InstanceType<typeof customOctokit>;
@@ -12,30 +13,17 @@ export class GitHubApi {
   }
 
   async getRepositories(): Promise<Repository[]> {
-    const repos: Repository[] = [];
-    let page = 1;
+    const data = await this._octokit.paginate(this._octokit.rest.repos.listForOrg, {
+      org: this._org,
+      type: "all",
+      per_page: 100,
+    });
 
-    while (true) {
-      const { data } = await this._octokit.rest.repos.listForOrg({
-        org: this._org,
-        type: "all",
-        per_page: 100,
-        page,
-      });
-
-      if (data.length === 0) break;
-
-      repos.push(
-        ...data.map((repo) => ({
-          name: repo.name,
-          full_name: repo.full_name,
-          owner: { login: repo.owner.login },
-        }))
-      );
-      page++;
-    }
-
-    return repos;
+    return data.map((repo) => ({
+      name: repo.name,
+      full_name: repo.full_name,
+      owner: { login: repo.owner.login },
+    }));
   }
 
   async getWorkflows(repo: string): Promise<WorkflowInfo[]> {
@@ -47,9 +35,8 @@ export class GitHubApi {
       });
 
       return data.workflows.map((wf) => ({ id: wf.id, name: wf.name }));
-    } catch (error) {
-      console.error(`Failed to get workflows for ${repo}:`, error);
-      return [];
+    } catch (err) {
+      throw logger.error(`Failed to get workflows for ${repo}:`, { err });
     }
   }
 
@@ -72,9 +59,8 @@ export class GitHubApi {
         html_url: run.html_url,
         actor: run.actor ? { login: run.actor.login } : null,
       }));
-    } catch (error) {
-      console.error(`Failed to get workflow runs for ${repo}:`, error);
-      return [];
+    } catch (err) {
+      throw logger.error(`Failed to get workflow runs for ${repo}:`, { err });
     }
   }
 
@@ -90,6 +76,7 @@ export class GitHubApi {
     const botRuns = runs.filter((run) => BOT_ACTORS.includes(run.actor?.login || ""));
 
     if (botRuns.length === 0) {
+      logger.warn(`No bot-triggered runs found for workflow ${workflowName} in ${repo}`);
       return null;
     }
 
@@ -114,6 +101,7 @@ export class GitHubApi {
     }
 
     if (consecutiveFailures >= threshold) {
+      logger.warn(`Workflow ${workflowName} in ${repo} has ${consecutiveFailures} consecutive failures.`);
       return {
         workflowName,
         workflowId,
@@ -127,17 +115,16 @@ export class GitHubApi {
 
   async issueExists(repo: string, title: string): Promise<boolean> {
     try {
-      const { data } = await this._octokit.rest.issues.listForRepo({
+      const data = await this._octokit.paginate(this._octokit.rest.issues.listForRepo, {
         owner: this._org,
         repo,
         state: "open",
         per_page: 100,
       });
 
-      return data.some((issue) => issue.title === title);
-    } catch {
-      // If we can't check, assume no issue exists
-      return false;
+      return data.some((issue) => issue.title === title && issue.state.toLowerCase() === "open");
+    } catch (err) {
+      throw logger.error(`Failed to check existing issues for ${repo}:`, { err });
     }
   }
 

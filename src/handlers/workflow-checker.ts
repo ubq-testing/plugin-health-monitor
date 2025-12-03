@@ -1,11 +1,12 @@
 import { ADMINS_TO_TAG, CONSECUTIVE_FAILURE_THRESHOLD, ISSUE_LABELS, ISSUE_TITLE } from "../types/constants";
 import { RepoFailures, WorkflowFailureInfo } from "../types/workflow";
+import { logger } from "../utils";
 import { GitHubApi } from "./github-api";
 
 export async function createIssueForFailures(api: GitHubApi, repo: string, failures: WorkflowFailureInfo[]): Promise<boolean> {
   // Check if an issue already exists
   if (await api.issueExists(repo, ISSUE_TITLE)) {
-    console.log(`Issue already exists for ${repo}, skipping...`);
+    logger.info(`Issue already exists for ${repo}, skipping...`);
     return false;
   }
 
@@ -29,10 +30,10 @@ ${ADMINS_TO_TAG.join(" ")} - Please investigate these failing workflows.
 
   try {
     await api.createIssue(repo, ISSUE_TITLE, issueBody, ISSUE_LABELS);
-    console.log(`Created issue for ${repo}`);
+    logger.info(`Created issue for ${repo}`);
     return true;
-  } catch (error) {
-    console.error(`Failed to create issue for ${repo}:`, error);
+  } catch (err) {
+    logger.error(`Failed to create issue for ${repo}:`, { err });
     return false;
   }
 }
@@ -52,14 +53,14 @@ export async function checkRepository(api: GitHubApi, repo: string): Promise<Wor
 }
 
 export async function checkAllRepositories(api: GitHubApi): Promise<RepoFailures[]> {
-  console.log("Fetching repositories...");
+  logger.info("Fetching repositories...");
   const repos = await api.getRepositories();
-  console.log(`Found ${repos.length} repositories`);
+  logger.info(`Found ${repos.length} repositories`);
 
   const allFailures: RepoFailures[] = [];
 
   for (const repo of repos) {
-    console.log(`Checking ${repo.name}...`);
+    logger.info(`Checking ${repo.name}...`);
     const failures = await checkRepository(api, repo.name);
 
     if (failures.length > 0) {
@@ -73,14 +74,14 @@ export async function checkAllRepositories(api: GitHubApi): Promise<RepoFailures
 
 export function printSummary(allFailures: RepoFailures[]): void {
   if (allFailures.length > 0) {
-    console.log("\n=== Summary of Failures ===");
+    logger.info("\n=== Summary of Failures ===");
     for (const { repo, failures } of allFailures) {
-      console.log(`\n${repo}:`);
+      logger.info(`\n${repo}:`);
       for (const f of failures) {
-        console.log(`  - ${f.workflowName}: ${f.consecutiveFailures} consecutive failures`);
+        logger.info(`  - ${f.workflowName}: ${f.consecutiveFailures} consecutive failures`);
       }
     }
   } else {
-    console.log(`\nNo workflows found with ${CONSECUTIVE_FAILURE_THRESHOLD}+ consecutive failures.`);
+    logger.info(`\nNo workflows found with ${CONSECUTIVE_FAILURE_THRESHOLD}+ consecutive failures.`);
   }
 }
