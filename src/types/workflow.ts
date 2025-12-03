@@ -1,6 +1,7 @@
 export interface WorkflowInfo {
   id: number;
   name: string;
+  path: string;
 }
 
 export interface WorkflowRun {
