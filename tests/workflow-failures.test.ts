@@ -514,12 +514,7 @@ describe("GitHubApi Failure Details", () => {
 
     it("should handle multiple error patterns", () => {
       const api = new GitHubApi(TEST_TOKEN, TEST_ORG);
-      const logContent = [
-        "Step 1: Setup",
-        "npm ERR! Missing script",
-        "fatal: not a git repository",
-        "Process completed with exit code 1",
-      ].join("\n");
+      const logContent = ["Step 1: Setup", "npm ERR! Missing script", "fatal: not a git repository", "Process completed with exit code 1"].join("\n");
 
       const extracted = api.extractRelevantLogLines(logContent);
 
