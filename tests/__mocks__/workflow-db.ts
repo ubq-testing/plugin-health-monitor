@@ -43,4 +43,29 @@ export const workflowDb = factory({
     state: String,
     labels: Array,
   },
+  jobs: {
+    id: primaryKey(Number),
+    run_id: Number,
+    repo: String,
+    name: String,
+    conclusion: nullable(String),
+    html_url: String,
+    steps: Array,
+  },
+  jobLogs: {
+    job_id: primaryKey(Number),
+    repo: String,
+    content: String,
+  },
+  openRouterModels: {
+    id: primaryKey(String),
+    pricing: {
+      prompt: String,
+      completion: String,
+    },
+  },
+  llmResponses: {
+    id: primaryKey(Number),
+    response: String,
+  },
 });
