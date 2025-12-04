@@ -4,19 +4,18 @@ import "dotenv/config";
 import { LOG_LEVEL } from "@ubiquity-os/ubiquity-os-logger";
 import { logger } from "../utils";
 
-/**
- * Define sensitive environment variables here.
- *
- * These are fed into the worker/workflow as `env` and are
- * taken from either `dev.vars` or repository secrets.
- * They are used with `process.env` but are type-safe.
- */
 export const envSchema = T.Object({
   LOG_LEVEL: T.Optional(T.Enum(LOG_LEVEL, { default: LOG_LEVEL.INFO })),
   GITHUB_TOKEN: T.String({
     minLength: 1,
     description: "GitHub token for API authentication (from actions/create-github-app-token@v2)",
   }),
+  OPENROUTER_API_KEY: T.Optional(
+    T.String({
+      minLength: 1,
+      description: "OpenRouter API key for AI-powered failure analysis",
+    })
+  ),
 });
 
 export type Env = StaticDecode<typeof envSchema>;

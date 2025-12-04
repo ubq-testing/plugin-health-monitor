@@ -20,6 +20,7 @@ export interface WorkflowFailureInfo {
   workflowId: number;
   consecutiveFailures: number;
   lastFailureUrl: string;
+  lastFailureRunId?: number;
 }
 
 export interface RepoFailures {
@@ -33,4 +34,44 @@ export interface Repository {
   owner: {
     login: string;
   };
+}
+
+// Failure details types
+export interface FailedStep {
+  name: string;
+  number: number;
+  conclusion: string;
+}
+
+export interface JobFailureDetails {
+  jobId: number;
+  jobName: string;
+  conclusion: string;
+  failedSteps: FailedStep[];
+  htmlUrl: string;
+}
+
+export interface WorkflowFailureDetails {
+  repo: string;
+  workflowName: string;
+  workflowId: number;
+  runId: number;
+  runUrl: string;
+  failedJobs: JobFailureDetails[];
+  logExcerpt?: string;
+}
+
+// AI Analysis types
+export interface FailureAnalysis {
+  repo: string;
+  workflowName: string;
+  runId: number;
+  runUrl: string;
+  summary: string;
+  rootCause: string;
+  errorMessages: string[];
+  affectedFiles: string[];
+  fixSpecification: string;
+  suggestedActions: string[];
+  analyzedAt: string;
 }
