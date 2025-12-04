@@ -2,25 +2,74 @@ import { ADMINS_TO_TAG, CONSECUTIVE_FAILURE_THRESHOLD, ISSUE_LABELS, ISSUE_TITLE
 import { RepoFailures, WorkflowFailureInfo } from "../types/workflow";
 import { logger } from "../utils";
 import { GitHubApi } from "./github-api";
+import { FailureAnalyzer } from "./failure-analyzer";
 
-export async function createIssueForFailures(api: GitHubApi, repo: string, failures: WorkflowFailureInfo[]): Promise<boolean> {
+async function getAiAnalysis(api: GitHubApi, repo: string, lastFailure: WorkflowFailureInfo, analyzer?: FailureAnalyzer): Promise<string> {
+  let section = "";
+
+  if (analyzer && lastFailure.lastFailureRunId) {
+    try {
+      const details = await api.getFailureDetails(repo, lastFailure.lastFailureRunId, lastFailure.workflowName, lastFailure.workflowId);
+      const analysis = await analyzer.analyzeFailure(details);
+
+      if (analysis) {
+        section += "\n" + analyzer.formatAnalysisForIssue(analysis);
+      }
+    } catch (err) {
+      logger.warn(`Failed to analyze failure for ${lastFailure.workflowName}`, { err });
+    }
+  }
+
+  return section;
+}
+
+async function buildFailureDetailsSection(api: GitHubApi, repo: string, failures: WorkflowFailureInfo[], analyzer?: FailureAnalyzer): Promise<string[]> {
+  const failureDetails: string[] = [];
+
+  for (const f of failures) {
+    const parts: string[] = [
+      `### ${f.workflowName}`,
+      `- **Consecutive failures:** ${f.consecutiveFailures}`,
+      `- **Latest failure:** [View Run](${f.lastFailureUrl})`,
+    ];
+
+    // If analyzer is available and we have a run ID, get AI analysis
+    if (!f.lastFailureRunId) {
+      logger.warn(`No lastFailureRunId for ${f.workflowName}, skipping log extraction.`);
+      failureDetails.push(parts.join("\n"));
+      continue;
+    }
+
+    // Try to get AI analysis if analyzer is provided
+    const aiAnalysis = await getAiAnalysis(api, repo, f, analyzer);
+    if (aiAnalysis) {
+      parts.push(aiAnalysis);
+    }
+
+    const details = await api.getFailureDetails(repo, f.lastFailureRunId, f.workflowName, f.workflowId);
+    const extractedLogs = api.extractRelevantLogLines(details.logExcerpt || "");
+    parts.push(`<details>\n<summary>Relevant Log Excerpt</summary>\n\n\`\`\`\n${extractedLogs}\n\`\`\`\n</details>`);
+
+    failureDetails.push(parts.join("\n"));
+  }
+
+  return failureDetails;
+}
+
+export async function createIssueForFailures(api: GitHubApi, repo: string, failures: WorkflowFailureInfo[], analyzer?: FailureAnalyzer): Promise<boolean> {
   // Check if an issue already exists
   if (await api.issueExists(repo, ISSUE_TITLE)) {
     logger.info(`Issue already exists for ${repo}, skipping...`);
     return false;
   }
 
-  const failureDetails = failures
-    .map(
-      (f) => `### ${f.workflowName}\n` + `- **Consecutive failures:** ${f.consecutiveFailures}\n` + `- **Latest failure:** [View Run](${f.lastFailureUrl})\n`
-    )
-    .join("\n");
+  const failureDetails = await buildFailureDetailsSection(api, repo, failures, analyzer);
 
   const issueBody = `## Workflow Dispatch Failures Detected
 
-The following workflows dispatched by the kernel (ubiquity-os[bot] or ubiquity-os-dev[bot]) have **${CONSECUTIVE_FAILURE_THRESHOLD}+ consecutive failures**:
+The following workflows dispatched by the kernel have **${CONSECUTIVE_FAILURE_THRESHOLD}+ consecutive failures**:
 
-${failureDetails}
+${failureDetails.join("\n")}
 
 ---
 
@@ -59,7 +108,7 @@ export async function checkRepository(api: GitHubApi, repo: string): Promise<Wor
   return failures;
 }
 
-export async function checkAllRepositories(api: GitHubApi): Promise<RepoFailures[]> {
+export async function checkAllRepositories(api: GitHubApi, analyzer?: FailureAnalyzer): Promise<RepoFailures[]> {
   logger.info("Fetching repositories...");
   const repos = await api.getRepositories();
   logger.debug(`Found ${repos.length} repositories`);
@@ -72,7 +121,7 @@ export async function checkAllRepositories(api: GitHubApi): Promise<RepoFailures
     logger.debug(`Found ${failures.length} failures in ${repo.name}`);
     if (failures.length > 0) {
       allFailures.push({ repo: repo.name, failures });
-      await createIssueForFailures(api, repo.name, failures);
+      await createIssueForFailures(api, repo.name, failures, analyzer);
     }
   }
 

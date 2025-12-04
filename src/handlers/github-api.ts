@@ -1,5 +1,5 @@
 import { BOT_ACTORS, CONSECUTIVE_FAILURE_THRESHOLD, MARKETPLACE_ORG } from "../types/constants";
-import { Repository, WorkflowFailureInfo, WorkflowInfo, WorkflowRun } from "../types/workflow";
+import { Repository, WorkflowFailureInfo, WorkflowInfo, WorkflowRun, WorkflowFailureDetails, JobFailureDetails, FailedStep } from "../types/workflow";
 import { customOctokit, RestEndpointMethodTypes } from "@ubiquity-os/plugin-sdk/octokit";
 import { logger } from "../utils";
 
@@ -96,12 +96,14 @@ export class GitHubApi {
     // Count consecutive failures from the most recent run
     let consecutiveFailures = 0;
     let lastFailureUrl = "";
+    let lastFailureRunId = 0;
 
     for (const run of botRuns) {
       if (run.conclusion === "failure") {
         consecutiveFailures++;
         if (!lastFailureUrl) {
           lastFailureUrl = run.html_url;
+          lastFailureRunId = run.id;
         }
       } else if (run.conclusion === "success") {
         // Stop counting when we hit a success
@@ -117,6 +119,7 @@ export class GitHubApi {
         workflowId,
         consecutiveFailures,
         lastFailureUrl,
+        lastFailureRunId,
       };
     }
 
@@ -146,5 +149,155 @@ export class GitHubApi {
       body,
       labels,
     });
+  }
+
+  /**
+   * Get detailed failure information for a workflow run including failed jobs, steps, and log excerpts
+   */
+  async getFailureDetails(repo: string, runId: number, workflowName: string, workflowId: number): Promise<WorkflowFailureDetails> {
+    const failedJobs = await this._getFailedJobs(repo, runId);
+
+    // Get log excerpt from the first failed job
+    let logExcerpt: string | undefined;
+    if (failedJobs.length > 0) {
+      logExcerpt = await this._getJobLogExcerpt(repo, failedJobs[0].jobId);
+    }
+
+    return {
+      repo,
+      workflowName,
+      workflowId,
+      runId,
+      runUrl: `https://github.com/${this._org}/${repo}/actions/runs/${runId}`,
+      failedJobs,
+      logExcerpt,
+    };
+  }
+
+  /**
+   * Get all failed jobs for a workflow run with their failed steps
+   */
+  private async _getFailedJobs(repo: string, runId: number): Promise<JobFailureDetails[]> {
+    try {
+      const { data } = await this._octokit.rest.actions.listJobsForWorkflowRun({
+        owner: this._org,
+        repo,
+        run_id: runId,
+        filter: "latest",
+      });
+
+      const failedJobs: JobFailureDetails[] = [];
+
+      for (const job of data.jobs) {
+        if (job.conclusion === "failure") {
+          const failedSteps: FailedStep[] = (job.steps || [])
+            .filter((step) => step.conclusion === "failure")
+            .map((step) => ({
+              name: step.name,
+              number: step.number,
+              conclusion: step.conclusion || "failure",
+            }));
+
+          failedJobs.push({
+            jobId: job.id,
+            jobName: job.name,
+            conclusion: job.conclusion,
+            failedSteps,
+            htmlUrl: job.html_url || "",
+          });
+        }
+      }
+
+      return failedJobs;
+    } catch (err) {
+      logger.error(`Failed to get jobs for run ${runId} in ${repo}`, { err });
+      return [];
+    }
+  }
+
+  /**
+   * Download and extract relevant error portions from a job's logs
+   */
+  private async _getJobLogExcerpt(repo: string, jobId: number): Promise<string | undefined> {
+    try {
+      const response = await this._octokit.rest.actions.downloadJobLogsForWorkflowRun({
+        owner: this._org,
+        repo,
+        job_id: jobId,
+      });
+
+      // Response is a redirect URL or the log content
+      return typeof response.data === "string" ? response.data : String(response.data);
+    } catch (err) {
+      logger.warn(`Failed to download logs for job ${jobId} in ${repo}`, { err });
+      return undefined;
+    }
+  }
+
+  /**
+   * Extract relevant error lines from raw log content
+   */
+  extractRelevantLogLines(logContent: string): string {
+    const lines = logContent.split("\n");
+    const relevantLines: { index: number; line: string }[] = [];
+
+    const MAX_LOG_EXCERPT_LINES = 100;
+    const CONTEXT_LINES = 3;
+
+    // Patterns to identify relevant error lines in logs
+    const ERROR_PATTERNS = [
+      /error:/i,
+      /failed:/i,
+      /exception:/i,
+      /fatal:/i,
+      /\bat\s+\S+:\d+:\d+/i, // Stack trace line numbers
+      /cannot find/i,
+      /not found/i,
+      /undefined/i,
+      /npm err!/i,
+      /exit code \d+/i,
+      /process completed with exit code/i,
+    ];
+
+    // Find lines matching error patterns
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (ERROR_PATTERNS.some((pattern) => pattern.test(line))) {
+        // Add context lines before and after
+        const startIdx = Math.max(0, i - CONTEXT_LINES);
+        const endIdx = Math.min(lines.length - 1, i + CONTEXT_LINES);
+
+        for (let j = startIdx; j <= endIdx; j++) {
+          if (!relevantLines.some((r) => r.index === j)) {
+            relevantLines.push({ index: j, line: lines[j] });
+          }
+        }
+      }
+    }
+
+    // Sort by line index and deduplicate
+    relevantLines.sort((a, b) => a.index - b.index);
+
+    // Limit total lines
+    const limitedLines = relevantLines.slice(0, MAX_LOG_EXCERPT_LINES);
+
+    if (limitedLines.length === 0) {
+      // If no patterns matched, return the last N lines (often contain the error)
+      return lines.slice(-MAX_LOG_EXCERPT_LINES).join("\n");
+    }
+
+    // Build excerpt with line separators for gaps
+    const excerptLines: string[] = [];
+    let lastIndex = -1;
+
+    for (const { index, line } of limitedLines) {
+      if (lastIndex !== -1 && index > lastIndex + 1) {
+        excerptLines.push("...");
+      }
+      excerptLines.push(line);
+      lastIndex = index;
+    }
+
+    return excerptLines.join("\n");
   }
 }
