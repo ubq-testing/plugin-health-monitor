@@ -22,7 +22,7 @@ interface OpenRouterModelsResponse {
 }
 
 // Preferred free models in order of priority
-const PREFERRED_FREE_MODELS = ["qwen/qwen3-coder:free", "openai/gpt-oss-20b:free", "kwaipilot/kat-coder-pro:free"];
+const PREFERRED_FREE_MODELS = ["amazon/nova-2-lite-v1:free" /* 1M token limit*/];
 
 export class OpenAiAdapter {
   private _client: OpenAI;
@@ -88,6 +88,28 @@ export class OpenAiAdapter {
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ],
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "FailureAnalysis",
+          description: "Analysis of the workflow failure with root cause and suggested fixes",
+          strict: true,
+          schema: {
+            summary: { type: "string" },
+            rootCause: { type: "string" },
+            errorMessages: {
+              type: "array",
+              items: { type: "string" },
+            },
+            affectedFiles: {
+              type: "array",
+              items: { type: "string" },
+            },
+            fixSpecification: { type: "string" },
+            suggestedActions: { type: "array", items: { type: "string" } },
+          },
+        },
+      },
     });
 
     if (!response.choices?.length) {
