@@ -57,15 +57,4 @@ export const workflowDb = factory({
     repo: String,
     content: String,
   },
-  openRouterModels: {
-    id: primaryKey(String),
-    pricing: {
-      prompt: String,
-      completion: String,
-    },
-  },
-  llmResponses: {
-    id: primaryKey(Number),
-    response: String,
-  },
 });

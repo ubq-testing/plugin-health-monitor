@@ -10,12 +10,6 @@ export const envSchema = T.Object({
     minLength: 1,
     description: "GitHub token for API authentication (from actions/create-github-app-token@v2)",
   }),
-  OPENROUTER_API_KEY: T.Optional(
-    T.String({
-      minLength: 1,
-      description: "OpenRouter API key for AI-powered failure analysis",
-    })
-  ),
 });
 
 export type Env = StaticDecode<typeof envSchema>;

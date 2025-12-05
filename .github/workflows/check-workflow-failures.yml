@@ -31,5 +31,4 @@ jobs:
       - name: Run workflow failure check
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: bun run src/check-workflow-failures.ts

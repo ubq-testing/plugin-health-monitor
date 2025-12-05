@@ -1,8 +1,6 @@
 import { http, HttpResponse } from "msw";
 import { workflowDb } from "./workflow-db";
 
-const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
-
 /**
  * Intercepts the routes for workflow failure testing
  */
@@ -126,65 +124,5 @@ export const workflowHandlers = [
     });
 
     return HttpResponse.json(newIssue, { status: 201 });
-  }),
-
-  // OpenRouter: Get models
-  http.get(`${OPENROUTER_BASE_URL}/models`, () => {
-    const models = workflowDb.openRouterModels.getAll();
-
-    // If no models are set up, return default free models
-    if (models.length === 0) {
-      return HttpResponse.json({
-        data: [
-          { id: "qwen/qwen3-coder:free", pricing: { prompt: "0", completion: "0" } },
-          { id: "openai/gpt-oss-20b:free", pricing: { prompt: "0", completion: "0" } },
-          { id: "kwaipilot/kat-coder-pro:free", pricing: { prompt: "0", completion: "0" } },
-        ],
-      });
-    }
-
-    return HttpResponse.json({
-      data: models.map((m) => ({
-        id: m.id,
-        pricing: m.pricing,
-      })),
-    });
-  }),
-
-  // OpenRouter: Chat completions
-  http.post(`${OPENROUTER_BASE_URL}/chat/completions`, async () => {
-    const llmResponse = workflowDb.llmResponses.findFirst({
-      where: { id: { equals: 1 } },
-    });
-
-    if (!llmResponse) {
-      // Return a default mock response
-      return HttpResponse.json({
-        choices: [
-          {
-            message: {
-              content: JSON.stringify({
-                summary: "Test failure summary",
-                rootCause: "Test root cause",
-                errorMessages: ["Error 1", "Error 2"],
-                affectedFiles: ["file1.ts", "file2.ts"],
-                fixSpecification: "Fix specification for test",
-                suggestedActions: ["Action 1", "Action 2"],
-              }),
-            },
-          },
-        ],
-      });
-    }
-
-    return HttpResponse.json({
-      choices: [
-        {
-          message: {
-            content: llmResponse.response,
-          },
-        },
-      ],
-    });
   }),
 ];

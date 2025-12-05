@@ -36,7 +36,6 @@ export interface Repository {
   };
 }
 
-// Failure details types
 export interface FailedStep {
   name: string;
   number: number;
@@ -59,19 +58,4 @@ export interface WorkflowFailureDetails {
   runUrl: string;
   failedJobs: JobFailureDetails[];
   logExcerpt?: string;
-}
-
-// AI Analysis types
-export interface FailureAnalysis {
-  repo: string;
-  workflowName: string;
-  runId: number;
-  runUrl: string;
-  summary: string;
-  rootCause: string;
-  errorMessages: string[];
-  affectedFiles: string[];
-  fixSpecification: string;
-  suggestedActions: string[];
-  analyzedAt: string;
 }
