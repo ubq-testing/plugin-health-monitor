@@ -551,12 +551,11 @@ describe("GitHubApi Failure Details", () => {
   });
 });
 
-describe("Workflow Checker with AI Analysis", () => {
+describe("Workflow Checker", () => {
   const originalEnv = process.env;
 
   beforeEach(() => {
     process.env = { ...originalEnv };
-    process.env.OPENROUTER_API_KEY = "test-api-key";
   });
 
   afterEach(() => {
