@@ -104,14 +104,27 @@ export class FailureAnalyzer {
   }
 
   private _parseAnalysisResponse(response: string): Omit<FailureAnalysis, "repo" | "workflowName" | "runId" | "runUrl" | "analyzedAt"> {
-    // Extract JSON from response (handle markdown code blocks)
-    let jsonStr = response;
-    const jsonMatch = /```(?:json)?\s*([\s\S]*?)```/.exec(response);
-    if (jsonMatch) {
-      jsonStr = jsonMatch[1].trim();
+    // Extract JSON from response (handle markdown code blocks, including nested ones)
+    let jsonStr = response.trim();
+
+    // Check if response starts with a markdown code block
+    if (jsonStr.startsWith("```")) {
+      // Find the opening code fence (```json or just ```)
+      const openingMatch = /^```(?:json)?\s*\n?/.exec(jsonStr);
+      if (openingMatch) {
+        // Remove the opening fence
+        jsonStr = jsonStr.slice(openingMatch[0].length);
+
+        // Find the closing fence - it must be at the end and on its own line
+        // This handles nested code blocks by only matching the final closing fence
+        const closingMatch = /\n?```\s*$/.exec(jsonStr);
+        if (closingMatch) {
+          jsonStr = jsonStr.slice(0, closingMatch.index);
+        }
+      }
     }
 
-    const parsed = JSON.parse(jsonStr);
+    const parsed = JSON.parse(jsonStr.trim());
 
     return {
       summary: parsed.summary || "Unknown failure",
