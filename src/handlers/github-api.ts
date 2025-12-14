@@ -34,7 +34,12 @@ export class GitHubApi {
         per_page: 100,
       });
 
-      return data.workflows.filter((wf) => wf.path.includes("compute")).map((wf) => ({ id: wf.id, name: wf.name, path: wf.path }));
+      return data.workflows
+        .filter((wf) => {
+          const name = wf.path?.split("/").pop()?.toLowerCase() ?? "";
+          return ["compute.yml", "compute.yaml"].includes(name);
+        })
+        .map((wf) => ({ id: wf.id, name: wf.name, path: wf.path }));
     } catch (err) {
       throw logger.error(`Failed to get workflows for ${repo}:`, { err });
     }
@@ -54,8 +59,8 @@ export class GitHubApi {
           return { login: run.actor.login };
         } else if (run.triggering_actor) {
           return { login: run.triggering_actor.login };
-        } else if (run.head_commit) {
-          return { login: run.head_commit.author?.name || "" };
+        } else if (run.head_commit && run.head_commit.author) {
+          return { login: run.head_commit.author.name };
         } else {
           return null;
         }
@@ -237,11 +242,19 @@ export class GitHubApi {
   /**
    * Extract relevant error lines from raw log content
    */
-  extractRelevantLogLines(logContent: string): string {
-    const lines = logContent.split("\n");
-    const relevantLines: { index: number; line: string }[] = [];
+  extractRelevantLogLines(logContent?: string): string | null {
+    if (!logContent) {
+      return null;
+    }
 
-    const MAX_LOG_EXCERPT_LINES = 100;
+    const lines = logContent.split("\n");
+    const relevantLines = this._findRelevantLines(lines);
+
+    return this._buildExcerptFromRelevantLines(lines, relevantLines);
+  }
+
+  private _findRelevantLines(lines: string[]): { index: number; line: string }[] {
+    const relevantLines: { index: number; line: string }[] = [];
     const CONTEXT_LINES = 3;
 
     // Patterns to identify relevant error lines in logs
@@ -259,11 +272,9 @@ export class GitHubApi {
       /process completed with exit code/i,
     ];
 
-    // Find lines matching error patterns
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       if (ERROR_PATTERNS.some((pattern) => pattern.test(line))) {
-        // Add context lines before and after
         const startIdx = Math.max(0, i - CONTEXT_LINES);
         const endIdx = Math.min(lines.length - 1, i + CONTEXT_LINES);
 
@@ -275,16 +286,20 @@ export class GitHubApi {
       }
     }
 
-    // Sort by line index and deduplicate
-    relevantLines.sort((a, b) => a.index - b.index);
+    return relevantLines;
+  }
 
-    // Limit total lines
-    const limitedLines = relevantLines.slice(0, MAX_LOG_EXCERPT_LINES);
+  private _buildExcerptFromRelevantLines(lines: string[], relevantLines: { index: number; line: string }[]): string | null {
+    const MAX_LOG_EXCERPT_LINES = 100;
 
-    if (limitedLines.length === 0) {
+    if (relevantLines.length === 0) {
       // If no patterns matched, return the last N lines (often contain the error)
       return lines.slice(-MAX_LOG_EXCERPT_LINES).join("\n");
     }
+
+    // Sort by line index and limit
+    relevantLines.sort((a, b) => a.index - b.index);
+    const limitedLines = relevantLines.slice(0, MAX_LOG_EXCERPT_LINES);
 
     // Build excerpt with line separators for gaps
     const excerptLines: string[] = [];

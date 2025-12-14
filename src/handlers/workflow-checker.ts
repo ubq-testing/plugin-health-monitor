@@ -20,7 +20,14 @@ async function buildFailureDetailsSection(api: GitHubApi, repo: string, failures
     }
 
     const details = await api.getFailureDetails(repo, f.lastFailureRunId, f.workflowName, f.workflowId);
-    const extractedLogs = api.extractRelevantLogLines(details.logExcerpt || "");
+    const extractedLogs = api.extractRelevantLogLines(details.logExcerpt);
+
+    if (!extractedLogs) {
+      logger.warn(`No relevant logs extracted for ${f.workflowName}, skipping log excerpt.`);
+      failureDetails.push(parts.join("\n"));
+      continue;
+    }
+
     parts.push(`<details>\n<summary>Relevant Log Excerpt</summary>\n\n\`\`\`\n${extractedLogs}\n\`\`\`\n</details>`);
 
     failureDetails.push(parts.join("\n"));
